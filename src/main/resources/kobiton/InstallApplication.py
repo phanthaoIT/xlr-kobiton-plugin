@@ -1,8 +1,7 @@
-import urllib2
+import urllib2, httplib
 import base64
 import json
-import httplib
-
+import struct
 username = 'phanthao'
 apiKey = 'da1fcf2b-2e15-42c4-ad20-3f7d59ffde3a'
 base64EncodeBasicAuth = 'Basic ' + base64.b64encode(username + ":" + apiKey)
@@ -19,9 +18,9 @@ def generateUrl():
     body = json.dumps({
         "filename": filename
     })
-    conn = httplib.HTTPSConnection("api.kobiton.com")
-    conn.request("POST","/v1/apps/uploadUrl",body,header)
-    response = conn.getresponse()
+    url = "https://api.kobiton.com/v1/apps/uploadUrl"
+    request = urllib2.Request(url,body,header)
+    response = urllib2.urlopen(request)
     data = json.loads(response.read())
     return data.get("url"), data.get("appPath")
 
@@ -30,10 +29,9 @@ def uploadToS3(presignedUrl):
         'Content-Type': 'application/octet-stream',
         'x-amz-tagging': 'unsaved=true'
     }
-    with open(filePath, "rb") as apkFile:
-        body =  base64.b64encode(apkFile.read())
-    request = urllib2.Request(presignedUrl, headers=header, data=str(body))
-    request.get_method = lambda: 'PUT'
+    body =  base64.b64encode(open(filePath,"rb").read())
+    request = urllib2.Request(presignedUrl, headers=header, data=body)
+    request.get_method = lambda: str('PUT')
     response = urllib2.urlopen(request)
     print response.code
 
@@ -47,9 +45,9 @@ def  createApp(appPath):
         "filename": filename,
         "appPath": appPath
     })
-    conn = httplib.HTTPSConnection("api.kobiton.com")
-    conn.request("POST","/v1/apps",body,header)
-    response = conn.getresponse()
+    url = "https://api.kobiton.com/v1/apps"
+    request = urllib2.Request(url,body,header)
+    response = urllib2.urlopen(request)
     data = json.loads(response.read())
     if data.get("appId"):
         return data.get("appId")

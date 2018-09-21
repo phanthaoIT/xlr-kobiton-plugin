@@ -1,7 +1,9 @@
-import urllib2
-import base64
-import json
 import httplib
+import jarray
+import base64
+from java.io import File
+from java.io import FileInputStream
+import json
 
 username = 'phanthao'
 apiKey = 'da1fcf2b-2e15-42c4-ad20-3f7d59ffde3a'
@@ -27,21 +29,22 @@ def generateUrl():
 
 def uploadToS3(presignedUrl):
     header = {
-        'Content-Type': 'application/octet-stream',
-        'x-amz-tagging': 'unsaved=true'
+    "Content-Type": "application/octet-stream",
+    "x-amz-tagging": "unsaved=true"
     }
-    with open(filePath, "rb") as apkFile:
-        body =  base64.b64encode(apkFile.read())
-    request = urllib2.Request(presignedUrl, headers=header, data=str(body))
-    request.get_method = lambda: 'PUT'
-    response = urllib2.urlopen(request)
-    print response.code
+    stream = FileInputStream(File(filePath))
+    file_bytes = jarray.zeros(stream.available(), "b")
+    stream.read(file_bytes)
+    conn = httplib.HTTPSConnection(presignedUrl)
+    conn.request("PUT","/",file_bytes,header)
+    response = conn.getresponse()
+    stream.close()
 
-def  createApp(appPath):
+def createApp(appPath):
     header = {
-        "Authorization": base64EncodeBasicAuth,
-        "Accept": "application/json",
-        "Content-Type": "application/json"
+    "Authorization": base64EncodeBasicAuth,
+    "Accept": "application/json",
+    "Content-Type": "application/json"
     }
     body = json.dumps({
         "filename": filename,
@@ -51,11 +54,12 @@ def  createApp(appPath):
     conn.request("POST","/v1/apps",body,header)
     response = conn.getresponse()
     data = json.loads(response.read())
+    print data
     if data.get("appId"):
         return data.get("appId")
     else:
         return None
-
+    
 try:
     urlAppPath = generateUrl()
     uploadToS3(urlAppPath[0])

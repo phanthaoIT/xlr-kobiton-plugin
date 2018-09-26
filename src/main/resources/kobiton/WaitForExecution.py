@@ -1,37 +1,68 @@
-import Queue
 import urllib2
 import json
-from threading import Thread
+import time
+import sys
 
-url = kobitonServer['remoteServer'] + '/verify'
+remoteServer = kobitonServer['remoteServer']
 results = {}
+listJobs = jobIds.keys()
+
+exitWhenCatchError = False
+
+# Format error message to display
+def printError(id, status, log):
+  print status + ' - ' + id + '\n'
+  print '--------------------------' + '\n'
+  print log + '\n'
+  print '--------------------------' + '\n'
+
 
 def main():
-  if jobIds == {}:
-    print 'No device in input.'
-    return
   
+  if len(listJobs) < 1:
+    print 'No Jobs for waiting.'
+    return
+
   headers = {
     'Content-Type': 'application/json'
   }
 
-  count = 0
-  numOfKeys = len(jobIds.keys())
-  while count < numOfKeys:
-    for key, value in jobIds.iteritems():
+  while len(listJobs) > 0:
+    for id in listJobs:
       try:
-        if results.has_key(key) == False:
-          body = {
-            key: value
-          }
-          request = urllib2.Request(url, json.dumps(body), headers=headers)
-          response = urllib2.urlopen(request)
-          data = response.read()
-          if data == 'SUCCESS' or data == 'ERROR':
-            results[key] = value + ' - ' + data
-            count += 1
+        url = remoteServer + '/' + id + '/status'
+        request = urllib2.Request(url, headers=headers)
+        response = urllib2.urlopen(request)
+        data = json.loads(response.read())
+
+        if data['status'] == 'ERROR':
+          if isExitWhenFail:
+            exitWhenCatchError = True 
+          printError(id, data['status'], data['message'])
+
+        if data['status'] != 'IN-PROGRESS':
+          if data['status'] == 'ERROR' and isExitWhenFail:
+            exitWhenCatchError = True
+          
+          results[id] = str(data['status'])
+
       except Exception as ex:
-        print ex
-        count += 1
+        printError(id, 'ERROR', ex)
+        results[id] = 'ERROR'
+        if isExitWhenFail:
+          exitWhenCatchError = True
+
+
+    for key in results.keys():
+      if key in listJobs:
+        index = listJobs.index(key)
+        del listJobs[index]
+    
+    # Delay to avoid DDOS 
+    if len(listJobs) > 0:
+      time.sleep(30)
 
 main()
+
+if exitWhenCatchError:
+  sys.exit(1)

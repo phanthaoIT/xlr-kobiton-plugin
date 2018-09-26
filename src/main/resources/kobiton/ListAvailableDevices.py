@@ -3,7 +3,6 @@ import re
 import urllib2
 import copy
 
-# Since the global variable wizard has already checked status of the url, we don't need to perform url checking again.
 api_server = kobitonServer['url']
 username = kobitonServer['username']
 api_key = kobitonServer['apiKey']
@@ -36,6 +35,10 @@ def get_devices_list():
 def get_all_devices():
   auth_token = create_basic_authentication_token()
   url = api_server + '/v1/devices'
+  
+  if groupId:
+    url += '?groupId=' + groupId
+    
   header = {
     "Content-Type": "application/json",
     "Authorization": auth_token
@@ -93,12 +96,16 @@ def device_contains_name(device):
 
 
 def serialize_device(device):
-  device_data = str().join([device['deviceName'], ' | ', device['platformName'], ' | ', device['platformVersion']])
+  if device['isCloud']:
+    deviceGroup = 'cloudDevices'
+  else:
+    deviceGroup = 'privateDevices'
+
+  device_data = str().join([device['deviceName'], ' | ', device['platformName'], ' | ', device['platformVersion'], ' | ', deviceGroup])
   serialized_device = {
     device['udid']: str(device_data)
   }
 
   return serialized_device
-
 
 devices = get_devices_list()
